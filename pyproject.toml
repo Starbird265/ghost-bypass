@@ -1,0 +1,100 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "ghost-bypass"
+version = "1.1.0"
+description = "Advanced ML-Guided Anti-Bot Evasion and Stealth Scraping Framework with AI Extraction"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+keywords = [
+    "cloudflare", "bypass", "scraping", "web-scraper",
+    "anti-bot", "stealth", "proxy", "playwright", "selenium",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+# Core dependencies (always required)
+dependencies = [
+    "requests>=2.31",
+    "beautifulsoup4>=4.12",
+    "lxml>=4.9",
+]
+
+[project.optional-dependencies]
+# pip install ghost-bypass[full]
+full = [
+    "playwright>=1.40",
+    "playwright-stealth>=1.0",
+    "undetected-chromedriver>=3.5",
+    "selenium>=4.15",
+    "httpx[http2]>=0.26",
+    "curl-cffi>=0.6",
+    "requests-html>=0.10",
+    "mechanize>=0.4",
+    "DrissionPage>=4.0",
+]
+# pip install ghost-bypass[playwright]
+playwright = [
+    "playwright>=1.40",
+    "playwright-stealth>=1.0",
+]
+# pip install ghost-bypass[selenium]
+selenium = [
+    "undetected-chromedriver>=3.5",
+    "selenium>=4.15",
+]
+# pip install ghost-bypass[tls]
+tls = [
+    "curl-cffi>=0.6",
+    "httpx[http2]>=0.26",
+]
+# pip install ghost-bypass[dev]
+dev = [
+    "pytest>=7",
+    "pytest-cov",
+    "black",
+    "ruff",
+    "mypy",
+    "pre-commit",
+]
+# pip install ghost-bypass[ai]
+ai = [
+    "litellm>=1.30",
+]
+
+[project.scripts]
+ghost = "ghost_bypass.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/your-username/ghost-bypass"
+Repository = "https://github.com/your-username/ghost-bypass"
+Issues = "https://github.com/your-username/ghost-bypass/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ghost_bypass*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.black]
+line-length = 100
+target-version = ["py39"]
+
+[tool.mypy]
+python_version = "3.9"
+ignore_missing_imports = true
