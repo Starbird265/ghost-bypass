@@ -79,9 +79,9 @@ ai = [
 ghost = "ghost_bypass.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/your-username/ghost-bypass"
-Repository = "https://github.com/your-username/ghost-bypass"
-Issues = "https://github.com/your-username/ghost-bypass/issues"
+Homepage = "https://github.com/Starbird265/ghost-bypass"
+Repository = "https://github.com/Starbird265/ghost-bypass"
+Issues = "https://github.com/Starbird265/ghost-bypass/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
