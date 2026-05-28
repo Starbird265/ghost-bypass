@@ -63,7 +63,7 @@ def _print_table(rows: list, headers: list):
 #  Main CLI entry point
 # ═══════════════════════════════════════════════════════════════════════════
 
-def main():
+def _build_parser():
     import argparse
 
     parser = argparse.ArgumentParser(
@@ -205,7 +205,11 @@ def main():
 
     # ── ghost repl ────────────────────────────────────────────────────────
     subparsers.add_parser("repl", help="Interactive REPL with slash commands")
+    
+    return parser
 
+def main():
+    parser = _build_parser()
     # ── Parse ─────────────────────────────────────────────────────────────
     args = parser.parse_args()
 
@@ -257,14 +261,14 @@ def main():
 #  Command implementations
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _cmd_scrape(args):
+def _cmd_scrape(args, engine_override=None):
     from ghost_bypass import BypassEngine, SiteLearner, MLProxyManager
 
     extract_dict = None
     if args.extract:
         extract_dict = json.loads(args.extract)
 
-    engine = BypassEngine(
+    engine = engine_override or BypassEngine(
         proxy_manager=MLProxyManager() if not args.proxy else None,
         site_learner=SiteLearner(),
         request_timeout=args.timeout,
@@ -308,14 +312,14 @@ def _cmd_scrape(args):
         print(output)
 
 
-def _cmd_scrape_many(args):
+def _cmd_scrape_many(args, engine_override=None):
     from ghost_bypass import BypassEngine, SiteLearner, MLProxyManager
 
     extract_dict = None
     if args.extract:
         extract_dict = json.loads(args.extract)
 
-    engine = BypassEngine(
+    engine = engine_override or BypassEngine(
         proxy_manager=MLProxyManager(),
         site_learner=SiteLearner(),
     )
@@ -664,17 +668,20 @@ def _cmd_install(args):
 
 def _cmd_repl():
     """Interactive REPL with slash commands."""
+    import shlex
     from ghost_bypass import BypassEngine, SiteLearner, MLProxyManager
 
     print("👻 ghost-bypass REPL")
-    print("Commands: /scrape <url>, /extract <url> <json>, /proxy list, /memory list")
-    print("          /keys list, /doctor, /quit")
+    print("Type /<command> to run any CLI command (e.g. /scrape, /proxy list)")
+    print("Type /quit to exit.")
     print()
 
     engine = BypassEngine(
         proxy_manager=MLProxyManager(),
         site_learner=SiteLearner(),
     )
+    
+    parser = _build_parser()
 
     while True:
         try:
@@ -686,78 +693,54 @@ def _cmd_repl():
         if not line:
             continue
 
-        parts = line.split(None, 1)
-        cmd = parts[0].lower()
-        rest = parts[1] if len(parts) > 1 else ""
+        if line.startswith("/"):
+            line = line[1:]
 
-        if cmd in ("/quit", "/exit", "/q"):
+        try:
+            args_list = shlex.split(line)
+        except ValueError as e:
+            print(f"❌ Error parsing command: {e}")
+            continue
+
+        if not args_list:
+            continue
+
+        cmd = args_list[0].lower()
+        if cmd in ("quit", "exit", "q"):
             print("👋 Bye!")
             break
+        try:
+            args = parser.parse_args(args_list)
+        except SystemExit:
+            continue
 
-        elif cmd == "/scrape":
-            if not rest:
-                print("Usage: /scrape <url>")
-                continue
-            result = engine.scrape(rest.strip())
-            if result["success"]:
-                print(f"✅ {result.get('title', 'No title')}")
-                print(f"   Method: {result['method']}, Time: {result['duration']:.2f}s")
-                print(f"   Links: {len(result.get('links', []))}")
+        if not getattr(args, "command", None):
+            parser.print_help()
+            continue
+
+        try:
+            if args.command == "scrape":
+                _cmd_scrape(args, engine_override=engine)
+            elif args.command == "scrape-many":
+                _cmd_scrape_many(args, engine_override=engine)
+            elif args.command == "proxy":
+                _cmd_proxy(args)
+            elif args.command == "keys":
+                _cmd_keys(args)
+            elif args.command == "memory":
+                _cmd_memory(args)
+            elif args.command == "cookies":
+                _cmd_cookies(args)
+            elif args.command == "doctor":
+                _cmd_doctor()
+            elif args.command == "install":
+                _cmd_install(args)
+            elif args.command == "repl":
+                print("Already in REPL.")
             else:
-                print(f"❌ {result.get('error', 'Unknown error')}")
-
-        elif cmd == "/extract":
-            sub_parts = rest.split(None, 1)
-            if len(sub_parts) < 2:
-                print("Usage: /extract <url> <json_selectors>")
-                continue
-            url, sel_json = sub_parts
-            try:
-                selectors = json.loads(sel_json)
-            except json.JSONDecodeError as e:
-                print(f"❌ Invalid JSON: {e}")
-                continue
-            result = engine.scrape(url.strip(), extract=selectors)
-            if result["success"] and result.get("data"):
-                _print_json(result["data"])
-            elif result["success"]:
-                print("✅ Scraped but no data extracted")
-            else:
-                print(f"❌ {result.get('error')}")
-
-        elif cmd == "/proxy":
-            if rest == "list":
-                from ghost_bypass import MLProxyManager
-                pm = MLProxyManager()
-                summary = pm.pool_summary()
-                print(f"Pool: {summary['total']} total, {summary['healthy']} healthy")
-            else:
-                print("Sub-commands: list")
-
-        elif cmd == "/memory":
-            if rest == "list":
-                sl = SiteLearner()
-                for d in sl.all_domains():
-                    print(f"  {d}")
-            else:
-                print("Sub-commands: list")
-
-        elif cmd == "/keys":
-            if rest == "list":
-                from ghost_bypass.ai.keys import KeyManager
-                km = KeyManager()
-                _print_json(km.summary())
-            else:
-                print("Sub-commands: list")
-
-        elif cmd == "/doctor":
-            _cmd_doctor()
-
-        elif cmd == "/help":
-            print("Commands: /scrape, /extract, /proxy, /memory, /keys, /doctor, /quit")
-
-        else:
-            print(f"Unknown command: {cmd}. Type /help for commands.")
+                parser.print_help()
+        except Exception as exc:
+            print(f"❌ Error: {exc}")
 
 
 if __name__ == "__main__":
