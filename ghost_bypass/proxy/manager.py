@@ -149,6 +149,13 @@ class MLProxyManager:
             total_global_pulls = (
                 sum(v["global"]["total"] for v in self._data.values()) + 1
             )
+            # Domain-specific total for exploration term blending
+            total_domain_pulls = (
+                sum(
+                    v["domains"].get(domain, {}).get("total", 0)
+                    for v in self._data.values()
+                ) + 1
+            ) if domain else None
 
             untried_for_domain: List[str] = []
             candidates: List[tuple] = []  # (score, proxy_url)
@@ -181,7 +188,7 @@ class MLProxyManager:
                     untried_for_domain.append(proxy)
                     continue
 
-                score = self._ucb_score(gl, dom, total_global_pulls)
+                score = self._ucb_score(gl, dom, total_global_pulls, total_domain_pulls)
                 candidates.append((score, proxy))
 
             best = None
@@ -452,6 +459,10 @@ class MLProxyManager:
         total_pulls = sum(
             v["global"]["total"] for v in self._data.values()
         ) + 1
+        total_domain_pulls = sum(
+            v["domains"].get(domain, {}).get("total", 0)
+            for v in self._data.values()
+        ) + 1
 
         ranked = []
         for url, entry in self._data.items():
@@ -461,7 +472,7 @@ class MLProxyManager:
             dom = entry["domains"].get(domain)
             if dom and dom["ban_until"] > now:
                 continue
-            score = self._ucb_score(gl, dom, total_pulls)
+            score = self._ucb_score(gl, dom, total_pulls, total_domain_pulls)
             ranked.append({"proxy": url, "score": round(score, 4)})
 
         ranked.sort(key=lambda r: -r["score"])
@@ -566,12 +577,18 @@ class MLProxyManager:
     # ── UCB scoring ───────────────────────────────────────────────────────
 
     @staticmethod
-    def _ucb_score(gl: dict, dom: Optional[dict], total_pulls: int) -> float:
+    def _ucb_score(
+        gl: dict,
+        dom: Optional[dict],
+        total_pulls: int,
+        total_domain_pulls: Optional[int] = None,
+    ) -> float:
         """
         Blended UCB1 score.
 
-        If domain data exists, the domain success rate is weighted more
-        heavily than the global rate (0.6 vs 0.4).
+        If domain data exists, both the success rate AND the exploration
+        term are blended (0.4 global + 0.6 domain) so that proxies
+        rarely tried on the target domain get a proper exploration bonus.
         """
         gl_total = gl["total"]
         if gl_total == 0:
@@ -584,6 +601,14 @@ class MLProxyManager:
         if dom and dom["total"] > 0:
             dom_sr = dom["successes"] / dom["total"]
             sr = 0.4 * gl_sr + 0.6 * dom_sr
+
+            # Blend exploration term with domain-specific counts
+            if total_domain_pulls and total_domain_pulls > 1:
+                dom_explore = math.sqrt(
+                    2 * math.log(total_domain_pulls) / dom["total"]
+                )
+                explore = 0.4 * explore + 0.6 * dom_explore
+
             # Blend latency too
             lat = 0.4 * gl["avg_latency"] + 0.6 * dom["avg_latency"]
             speed_bonus = max(0.0, (5.0 - lat) * 0.08)

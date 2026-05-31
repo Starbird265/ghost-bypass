@@ -56,7 +56,7 @@ import random
 import time
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from urllib.parse import urljoin, urlparse
 
 logger = logging.getLogger(__name__)
@@ -375,8 +375,8 @@ class BypassEngine:
                     if self.proxy_manager and proxy and lease_proxies:
                         self.proxy_manager.release_proxy(proxy, domain)
                 
-                if cf_detected and level_name not in CF_INCAPABLE:
-                    logger.info("⚡ CF challenged. Bailing %s, jumping to L8", level_name)
+                if cf_detected and level_name in CF_INCAPABLE:
+                    logger.info("⚡ CF detected — bailing %s (CF-incapable), jumping to next", level_name)
                     break
 
             # All proxy attempts for this level failed → next level from deque
@@ -556,7 +556,7 @@ def _L0_requests_basic(url, proxy, timeout, **_) -> dict:
             "User-Agent": StealthConfig.random_ua(),
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.9",
-            "Accept-Encoding": "gzip, deflate, br",
+            "Accept-Encoding": "gzip, deflate",
             "Connection": "keep-alive",
             "Upgrade-Insecure-Requests": "1",
             "Sec-Fetch-Dest": "document",
@@ -727,7 +727,6 @@ def _playwright_base(url, proxy, timeout, cookie_manager, ad_blocker,
                 timezone_id="America/New_York",
                 is_mobile=mobile,
                 has_touch=mobile,
-                proxy=proxy_cfg,
             )
             page = ctx.new_page()
 
@@ -1029,7 +1028,8 @@ def _parse_html(html: str, base_url: str) -> dict:
             "images": list(dict.fromkeys(images)),
             "scripts": list(dict.fromkeys(scripts)),
         }
-    except Exception:
+    except Exception as exc:
+        logger.debug("[Parser] _parse_html failed for %s: %s", base_url, exc)
         return {"title": "", "text": "", "meta": {}, "links": [], "images": [], "scripts": []}
 
 
@@ -1037,22 +1037,44 @@ def _parse_html(html: str, base_url: str) -> dict:
 #  Cloudflare detection helpers
 # ═══════════════════════════════════════════════════════════════════════════
 
+# Unified with cloudflare/handler.py — keep both lists in sync
 _CF_PHRASES = [
-    "just a moment", "checking your browser", "enable javascript and cookies",
+    # Title-level signals
+    "just a moment", "checking your browser", "please wait",
+    "attention required", "security check", "one more step",
+    "verifying you are human", "enable javascript and cookies",
+    # Body-level signals
     "cf_clearance", "cf-browser-verification", "cloudflare ray id",
-    "cf-turnstile", "challenge-platform", "ddos-guard",
+    "cf-turnstile", "challenge-platform", "__cf_bm",
+    "checking if the site connection is secure",
+    "this process is automatic", "ddos-guard", "ddos-guard.net",
 ]
 
 
 def _is_cf_response(status_code: int, html: str) -> bool:
+    """Detect CF challenge pages.  Check on 403/503 (common) and also
+    on 200 (some CF challenges serve 200 with challenge HTML)."""
     if status_code in (403, 503):
         return _is_cf_html(html)
+    if status_code == 200:
+        # Only flag as CF on 200 if multiple strong signals match
+        return _is_cf_html(html, threshold=3)
     return False
 
 
-def _is_cf_html(html: str) -> bool:
+def _is_cf_html(html: str, threshold: int = 1) -> bool:
+    """Return True if *html* contains CF/WAF challenge indicators.
+
+    *threshold* is the minimum number of phrases that must match.
+    Use threshold=1 for 403/503 responses, threshold=3 for 200 responses
+    to avoid false positives on normal pages that mention Cloudflare.
+    """
+    if not html or not isinstance(html, str):
+        return False
     low = html.lower()
-    return any(p in low for p in _CF_PHRASES)
+    if threshold <= 1:
+        return any(p in low for p in _CF_PHRASES)
+    return sum(1 for p in _CF_PHRASES if p in low) >= threshold
 
 
 # ═══════════════════════════════════════════════════════════════════════════

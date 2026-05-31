@@ -20,6 +20,13 @@ Scrape any website. Works on Cloudflare-protected sites, WAFs, anti-bot systems,
 
 ---
 
+## 📚 Documentation
+
+- [Getting Started Guide](GETTING_STARTED.md) — Prerequisites, installation (including brotli), and your first scrape.
+- [How to Use Guide](HOW_TO_USE.md) — Advanced deep dive into ML Proxy Management, UCB1 Domain-aware Exploration, SiteLearner, CF Bypass logic, and 3-Tier Extraction.
+
+---
+
 ## Installation
 
 ```bash

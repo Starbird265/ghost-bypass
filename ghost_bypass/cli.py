@@ -570,6 +570,8 @@ def _cmd_doctor():
         ("requests", "requests"),
         ("beautifulsoup4", "bs4"),
         ("lxml", "lxml"),
+        ("brotli", "brotli"),
+        ("brotlicffi", "brotlicffi"),
         ("playwright", "playwright"),
         ("playwright-stealth", "playwright_stealth"),
         ("undetected-chromedriver", "undetected_chromedriver"),
