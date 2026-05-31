@@ -19,10 +19,8 @@ Usage::
 
 import json
 import sys
-import time
 import logging
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger("ghost_bypass")
 

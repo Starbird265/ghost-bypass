@@ -145,7 +145,7 @@ class AdBlocker:
             else:
                 break
 
-        total = self.stats["ads_closed"] + self.stats["popups_closed"]
+
         logger.info(
             "🎯 [AdBlocker] Done — %d overlays + %d tabs closed",
             self.stats["ads_closed"],

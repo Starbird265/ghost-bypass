@@ -20,8 +20,7 @@ Scans well-known ports for:
 import json
 import logging
 import socket
-import time
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 

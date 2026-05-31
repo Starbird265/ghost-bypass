@@ -455,7 +455,6 @@ class BypassEngine:
             Results in the same order as *urls*.
         """
         import time
-        import random
         import urllib.parse
         from threading import Lock
 

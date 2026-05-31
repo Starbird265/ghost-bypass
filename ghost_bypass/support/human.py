@@ -13,9 +13,8 @@ handled via ``StealthConfig.simulate_human_mouse()``.
 
 import time
 import random
-import math
 import logging
-from typing import Optional, List, Tuple
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
